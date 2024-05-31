@@ -11,3 +11,4 @@ pyvis
 SudachiPy
 ginza
 ja-ginza
+openpyxl
