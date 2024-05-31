@@ -135,7 +135,7 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
 st.title("共起ネットワークを見てみよう")
 
 # エクセルファイルのアップロード
-uploaded_file = st.file_uploader("エクセルファイルをアップロードしてください", type=["xlsx"])
+uploaded_file = st.file_uploader("DGOレビューを集計したエクセルファイルをアップロードしてね", type=["xlsx"])
 
 if uploaded_file is not None:
     # エクセルファイルの読み込み
@@ -204,7 +204,6 @@ if uploaded_file is not None:
        - リアルタイムのデータ分析には不向きな場合がある。
     """)
 else:
-    st.write("エクセルファイルをアップロードしてください。")
 
 if uploaded_file is not None:
     # エクセルファイルの読み込み
