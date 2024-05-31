@@ -19,13 +19,9 @@ nlp = spacy.blank("ja")
 
 # 正規化関数
 def normalize_text(text):
-    # 小文字化
     text = text.lower()
-    # アンダーバーを削除
     text = text.replace('_', '')
-    # 'x000d'を削除
     text = text.replace('x000d', '')
-    # 改行をスペースに置き換え
     text = text.replace('\n', ' ')
     return text
 
@@ -204,7 +200,4 @@ if uploaded_file is not None:
        - リアルタイムのデータ分析には不向きな場合がある。
     """)
 else:
-
-if uploaded_file is not None:
-    # エクセルファイルの読み込み
-    df = pd.read_excel(uploaded_file, sheet_name=None)
+    st.write("エクセルファイルをアップロードしてください。")
