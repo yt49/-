@@ -2,12 +2,14 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from janome.tokenizer import Tokenizer
+from janome.analyzer import Analyzer
+from janome.tokenfilter import POSKeepFilter
+from gensim.models.phrases import Phrases, Phraser
+from sklearn.feature_extraction.text import CountVectorizer
 import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns
 import japanize_matplotlib  # 日本語フォントのためにインポート
-import re
-from sklearn.feature_extraction.text import CountVectorizer
 from networkx.algorithms.community import greedy_modularity_communities
 import matplotlib.cm as cm
 import spacy
@@ -132,9 +134,12 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
     st.pyplot(plt)  # Streamlitでプロットを表示
 
 # レーダーチャートを描画する関数
-def draw_radar_chart(avg_values):
+def draw_radar_chart(df):
     labels = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
     ranges = [(0, 5), (0, 5), (0, 5), (30, 70), (110, 70), (35, 50), (200, 250)]  # 平均スコアの範囲を反転
+
+    # 各列の平均値を計算
+    avg_values = [df[label].mean() for label in labels]
 
     # 正規化
     avg_values_normalized = [
@@ -177,6 +182,13 @@ def draw_correlation_heatmap(df):
     plt.title('相関関係のヒートマップ')
     st.pyplot(plt)
 
+# トークン化関数
+def tokenize_texts(texts):
+    t = Tokenizer()
+    token_filters = [POSKeepFilter(['名詞'])]
+    analyzer = Analyzer(tokenizer=t, token_filters=token_filters)
+    return [[token.surface for token in analyzer.analyze(text)] for text in texts]
+
 # Streamlit アプリケーション
 st.title("口コミ情報分析ツール")
 
@@ -196,6 +208,39 @@ if uploaded_file is not None:
     # 分かち書き
     df['分かち書き'] = df['レビューコメント'].apply(lambda x: get_words(x, unwanted_keywords))
 
+    # トークン化
+    texts = df['レビューコメント'].tolist()
+    tokenized_texts = tokenize_texts(texts)
+    phrases = Phrases(tokenized_texts, min_count=5, threshold=10)
+    phraser = Phraser(phrases)
+    phrase_texts = phraser[tokenized_texts]
+    processed_texts = [' '.join(tokens) for tokens in phrase_texts]
+
+    # ベクトル化
+    vectorizer = CountVectorizer()
+    X = vectorizer.fit_transform(processed_texts)
+
+    # 語彙とその出現頻度を取得
+    vocabulary = vectorizer.vocabulary_
+    word_frequencies = X.toarray().sum(axis=0)
+
+    # 頻出単語をソート
+    sorted_vocab = sorted(vocabulary.items(), key=lambda x: word_frequencies[vocabulary[x[0]]], reverse=True)
+
+    # 上位20件の単語とフレーズを取得
+    df_most_common = pd.DataFrame({'Word': [word for word, _ in sorted_vocab],
+                                   'Frequency': [word_frequencies[vocabulary[word]] for word, _ in sorted_vocab]})
+    top_words = df_most_common.head(20)
+
+    # 単語の出現回数の棒グラフを作成
+    plt.figure(figsize=(10, 8))
+    plt.barh(top_words['Word'], top_words['Frequency'], color='skyblue')
+    plt.xlabel('出現回数', fontsize=14)
+    plt.ylabel('単語', fontsize=14)
+    plt.title('単語の出現回数', fontsize=16)
+    plt.tight_layout()
+    st.pyplot(plt)
+
     # 分かち書きデータから共起行列を作成
     sents = df['分かち書き'].tolist()
     words, word_counts, Xc, X = count_cooccurrence(sents, min_count=5)  # 最低出現回数を設定
@@ -209,43 +254,8 @@ if uploaded_file is not None:
     # ネットワークを描画
     pyplot_network(G)
 
-    # レーダーチャートのための平均値を抽出
-    avg_row = df.iloc[-1]  # 最下行を取得
-    avg_values = [
-        avg_row['満足度'], avg_row['デザイン'], avg_row['コスト感'],
-        avg_row['年齢'], avg_row['平均スコア'], avg_row['ヘッドスピード'], avg_row['平均飛距離']
-    ]
-
     # レーダーチャートを描画
-    draw_radar_chart(avg_values)
-
-    # 単語の出現回数の棒グラフを作成
-    # テキストをベクトル化
-    vectorizer = CountVectorizer()
-    X = vectorizer.fit_transform(df['分かち書き'])
-
-    # 語彙とその出現頻度を取得
-    vocabulary = vectorizer.vocabulary_
-    word_frequencies = X.toarray().sum(axis=0)
-
-    # 出現頻度の高い順にソートした単語リストを作成
-    sorted_vocab = sorted(vocabulary.items(), key=lambda x: word_frequencies[vocabulary[x[0]]], reverse=True)
-
-    # 出現回数の多い順に並べる
-    df_most_common = pd.DataFrame({'Word': [word for word, _ in sorted_vocab],
-                                   'Frequency': [word_frequencies[vocabulary[word]] for word, _ in sorted_vocab]})
-
-    # 上位10件の単語とフレーズを取得
-    top_words = df_most_common.head(10)
-
-    # 棒グラフの描画
-    plt.figure(figsize=(10, 8))
-    plt.barh(top_words['Word'], top_words['Frequency'], color='skyblue')
-    plt.xlabel('出現回数', fontsize=14)
-    plt.ylabel('単語', fontsize=14)
-    plt.title('単語の出現回数', fontsize=16)
-    plt.tight_layout()
-    st.pyplot(plt)
+    draw_radar_chart(df)
 
     # 相関関係のヒートマップを描画
     draw_correlation_heatmap(df)
@@ -253,7 +263,6 @@ if uploaded_file is not None:
     - 数字の絶対値が1に近いほど強い相関があることを示します。
     - 平均スコアについては、数値を反転しています。したがって、例えば、平均飛距離と正の相関がある場合、これは平均飛距離が高いほど平均スコアが低くなる傾向があることを示しています。
     """)
-
 
     # 解説文
     st.markdown("""
@@ -279,4 +288,3 @@ if uploaded_file is not None:
 
     この解説を参考に、ネットワーク内の単語の関係性を視覚的に理解してみてください。
     """)
-
