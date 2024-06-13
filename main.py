@@ -99,6 +99,9 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
     else:
         pos = nx.random_layout(G, center=None, dim=2, seed=None)
 
+    # posの値をチェックし、無限大やNaNの値を除外
+    pos = {k: (v[0] if np.isfinite(v[0]) else 0, v[1] if np.isfinite(v[1]) else 0) for k, v in pos.items()}
+
     connecteds = []
     colors_list = []
 
@@ -127,8 +130,40 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
     plt.axis("off")
     st.pyplot(plt)  # Streamlitでプロットを表示
 
+# レーダーチャートを描画する関数
+def draw_radar_chart(avg_values):
+    labels = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
+    ranges = [(0, 5), (0, 5), (0, 5), (30, 70), (70, 110), (35, 50), (200, 250)]
+    
+    # 正規化
+    avg_values_normalized = [(avg_values[i] - ranges[i][0]) / (ranges[i][1] - ranges[i][0]) for i in range(len(ranges))]
+
+    # 角度を計算
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    avg_values_normalized += avg_values_normalized[:1]
+    angles += angles[:1]
+
+    # レーダーチャートの描画
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax.fill(angles, avg_values_normalized, color='blue', alpha=0.25)
+    ax.plot(angles, avg_values_normalized, color='blue', linewidth=2)
+
+    # 軸とラベルの設定
+    ax.set_yticklabels([])
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=12)
+
+    # 各ラベルに最小値、最大値、平均値を記載
+    for i, label in enumerate(labels):
+        angle = angles[i]
+        ax.text(angle, avg_values_normalized[i], f'{avg_values[i]:.2f}', horizontalalignment='center', size=10, color='black', weight='semibold')
+        ax.text(angle, 1.1, f'{ranges[i][1]}', horizontalalignment='center', size=10, color='red', weight='semibold')
+        ax.text(angle, -0.1, f'{ranges[i][0]}', horizontalalignment='center', size=10, color='green', weight='semibold')
+
+    st.pyplot(fig)
+
 # Streamlit アプリケーション
-st.title("共起ネットワークを見てみよう")
+st.title("口コミ情報分析ツール")
 
 # エクセルファイルのアップロード
 uploaded_file = st.file_uploader("DGOレビューを集計したエクセルファイルをアップロードしてね", type=["xlsx"])
@@ -158,6 +193,17 @@ if uploaded_file is not None:
 
     # ネットワークを描画
     pyplot_network(G)
+
+    # レーダーチャートのための平均値を抽出
+    avg_row = df.iloc[-1]  # 最下行を取得
+    avg_values = [
+        avg_row['満足度'], avg_row['デザイン'], avg_row['コスト感'],
+        avg_row['年齢'], avg_row['平均スコア'], avg_row['ヘッドスピード'], avg_row['平均飛距離']
+    ]
+
+    # レーダーチャートを描画
+    draw_radar_chart(avg_values)
+
 
     # 単語の出現回数の棒グラフを作成
     # テキストをベクトル化
@@ -205,7 +251,6 @@ if uploaded_file is not None:
 
     #### まとめ
     - **線の太さ**：2つの単語がどれくらい一緒に使われるかを表し、頻度が高いほど太くなります。
-    - **線の色**：すべての線は`whitesmoke`色で描かれます。
     - **ノードの大きさ**：単語の出現頻度を表し、頻度が高いほど大きくなります。
     - **ノードの色**：同じ色のノードは、互いに関連が深い単語を表し、コミュニティごとに異なる色が割り当てられます。
 
