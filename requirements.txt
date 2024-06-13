@@ -12,3 +12,4 @@ spacy==2.3.9
 scipy==1.11.4
 sudachipy==0.5.4
 sudachidict_core==20220729
+openpyxl==3.1.3
