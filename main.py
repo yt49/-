@@ -135,7 +135,7 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
 
 # レーダーチャートを描画する関数
 def draw_radar_chart(df):
-    labels = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
+    labels = ['満足度', 'デザイン評価', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
     ranges = [(0, 5), (0, 5), (0, 5), (30, 70), (110, 70), (35, 50), (200, 250)]  # 平均スコアの範囲を反転
 
     # 各列の平均値を計算
@@ -174,7 +174,7 @@ def draw_radar_chart(df):
 
 # 相関関係を図示する関数
 def draw_correlation_heatmap(df):
-    corr_columns = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
+    corr_columns = ['満足度', 'デザイン評価', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
     corr = df[corr_columns].corr()
 
     plt.figure(figsize=(10, 8))
