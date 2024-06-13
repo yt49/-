@@ -12,3 +12,4 @@ SudachiPy
 ginza
 ja-ginza
 openpyxl
+seaborn
