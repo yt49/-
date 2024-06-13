@@ -4,6 +4,7 @@ import numpy as np
 from janome.tokenizer import Tokenizer
 import networkx as nx
 import matplotlib.pyplot as plt
+import seaborn as sns
 import japanize_matplotlib  # 日本語フォントのためにインポート
 import re
 from sklearn.feature_extraction.text import CountVectorizer
@@ -133,10 +134,14 @@ def pyplot_network(G, layout='spring', layout_parameter_k=0.1):
 # レーダーチャートを描画する関数
 def draw_radar_chart(avg_values):
     labels = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
-    ranges = [(0, 5), (0, 5), (0, 5), (30, 70), (70, 110), (35, 50), (200, 250)]
-    
+    ranges = [(0, 5), (0, 5), (0, 5), (30, 70), (110, 70), (35, 50), (200, 250)]  # 平均スコアの範囲を反転
+
     # 正規化
-    avg_values_normalized = [(avg_values[i] - ranges[i][0]) / (ranges[i][1] - ranges[i][0]) for i in range(len(ranges))]
+    avg_values_normalized = [
+        (avg_values[i] - ranges[i][0]) / (ranges[i][1] - ranges[i][0]) if i != 4
+        else (ranges[i][0] - avg_values[i]) / (ranges[i][0] - ranges[i][1])  # 平均スコアの正規化
+        for i in range(len(ranges))
+    ]
 
     # 角度を計算
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
@@ -161,6 +166,16 @@ def draw_radar_chart(avg_values):
         ax.text(angle, -0.1, f'{ranges[i][0]}', horizontalalignment='center', size=10, color='green', weight='semibold')
 
     st.pyplot(fig)
+
+# 相関関係を図示する関数
+def draw_correlation_heatmap(df):
+    corr_columns = ['満足度', 'デザイン', 'コスト感', '年齢', '平均スコア', 'ヘッドスピード', '平均飛距離']
+    corr = df[corr_columns].corr()
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr, annot=True, cmap='coolwarm', center=0)
+    plt.title('相関関係のヒートマップ')
+    st.pyplot(plt)
 
 # Streamlit アプリケーション
 st.title("口コミ情報分析ツール")
@@ -204,7 +219,6 @@ if uploaded_file is not None:
     # レーダーチャートを描画
     draw_radar_chart(avg_values)
 
-
     # 単語の出現回数の棒グラフを作成
     # テキストをベクトル化
     vectorizer = CountVectorizer()
@@ -233,6 +247,14 @@ if uploaded_file is not None:
     plt.tight_layout()
     st.pyplot(plt)
 
+    # 相関関係のヒートマップを描画
+    draw_correlation_heatmap(df)
+    st.markdown("""
+    - 数字の絶対値が1に近いほど強い相関があることを示します。
+    - 平均スコアについては、数値を反転しています。したがって、例えば、平均飛距離と正の相関がある場合、これは平均飛距離が高いほど平均スコアが低くなる傾向があることを示しています。
+    """)
+
+
     # 解説文
     st.markdown("""
     ### 共起ネットワークの解説
@@ -251,8 +273,10 @@ if uploaded_file is not None:
 
     #### まとめ
     - **線の太さ**：2つの単語がどれくらい一緒に使われるかを表し、頻度が高いほど太くなります。
+    - **線の色**：すべての線は`whitesmoke`色で描かれます。
     - **ノードの大きさ**：単語の出現頻度を表し、頻度が高いほど大きくなります。
     - **ノードの色**：同じ色のノードは、互いに関連が深い単語を表し、コミュニティごとに異なる色が割り当てられます。
 
     この解説を参考に、ネットワーク内の単語の関係性を視覚的に理解してみてください。
     """)
+
