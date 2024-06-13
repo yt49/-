@@ -13,3 +13,7 @@ ginza
 ja-ginza
 openpyxl
 seaborn
+pandas
+numpy
+networkx
+spacy
